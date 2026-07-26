@@ -51,8 +51,6 @@ export async function normalizeDocument(input: NormalizeInput): Promise<Normaliz
   if (sourceType === "pdf") {
     if (!input.buffer) throw new Error("PDF normalization requires a buffer")
 
-    // const parser = new PDFParse({ data: input.buffer })
-    // const parsed = await parser.getText()
     try {
       const parser = new PDFParse({ data: input.buffer })
       const parsed = await parser.getText()

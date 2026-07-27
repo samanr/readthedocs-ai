@@ -7,7 +7,6 @@ export async function loadDocument(filePath: string) {
 
   if (ext === ".pdf") {
     const buffer = await readFile(filePath)
-    console.log('coming here')
     return normalizeDocument({ filePath, buffer })
   }
 

@@ -65,7 +65,7 @@ export async function normalizeDocument(input: NormalizeInput): Promise<Normaliz
       content: parsed.text.trim(),
     }
     } catch (error) {
-      console.error("PDF parse failed:", input.filePath, input.buffer.length, input.buffer.subarray(0, 20))
+      console.error("PDF parse failed:", input.filePath)
       throw error
     }
     

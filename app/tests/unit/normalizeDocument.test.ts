@@ -14,7 +14,7 @@ function setupSha256(result = "sha256") {
   createHashMock.mockReturnValue({ update })
 }
 
-describe.only("normalizeDocument", () => {
+describe("normalizeDocument", () => {
   beforeEach(() => {
     vi.resetAllMocks()
     setupSha256("checksum-123")

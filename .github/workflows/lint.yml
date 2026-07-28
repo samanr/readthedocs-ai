@@ -1,0 +1,40 @@
+name: Lint and Format Auto-Fix
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint-and-format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Allows GitHub to commit auto-fixes back to your repo
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }} # Targets the correct branch for PRs
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24' # 🚀 Updated to match your local Node v24 environment
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Prettier Auto-Fix
+        run: npx prettier --write .
+
+      - name: Run ESLint Auto-Fix
+        run: npx eslint . --fix # 🧹 Cleaned up: flag removed since flat config is the default
+
+      - name: Commit and Push Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto-format lint and prettier fixes"
+          file_pattern: ':! .github/workflows/*'

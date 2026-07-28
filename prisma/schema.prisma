@@ -15,14 +15,16 @@ datasource db {
 model Document {
   id          String   @id @default(cuid())
   sourceType   String
-  sourceUri    String?
+  sourceUri    String   @unique
   title        String?
-  checksum     String?  @unique
+  checksum     String?
   metadata     Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   chunks       Chunk[]
+
+  @@index([checksum])
 }
 
 model Chunk {

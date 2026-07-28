@@ -17,6 +17,26 @@ This app is being built in stages:
 - Show inline citations and source details.
 - Track runs and evaluation metrics for quality and regression testing.
 
+## Supported document formats
+
+The ingestion pipeline currently supports:
+
+- **Markdown (`.md`)** — YAML frontmatter is parsed into document metadata; the body becomes the document content.
+- **Plain text (`.txt`)** — the raw file content becomes the document content, with no metadata extracted.
+- **PDF (`.pdf`)** — text is extracted per page; page count and per-page text are captured for later page-aware chunking.
+
+Any other extension (including `.docx`) is rejected at load time. We're intentionally scoping the pipeline to these three formats for now — adding a new format is a deliberate decision, not a drop-in.
+
+## Chunking strategy
+
+Documents are split into retrieval-sized chunks using a **recursive + structure-aware** approach for all three supported formats. The recursive splitting itself is handled by `@langchain/textsplitters`'s `RecursiveCharacterTextSplitter` (chunk size 1000 characters, 200 character overlap); on top of that, each format is split along its own natural structure first, so chunks carry positional metadata for citations:
+
+- **PDF** — split per page (using the page-wise text captured during normalization); each chunk is tagged with `{ page: n }`.
+- **Markdown** — split on headings (`#` through `######`) first; each chunk is tagged with `{ heading }`. Any section still too large after that is recursively split further using markdown-aware separators (lists, code fences, etc.).
+- **Plain text** — no structure to split on, so it goes straight through the recursive splitter with no extra metadata.
+
+`chunkIndex` is assigned sequentially across the whole document (not reset per page or section), so chunk order is always recoverable regardless of source format.
+
 ## Current milestone
 
 The repo is currently set up through:

@@ -3,29 +3,8 @@ import path from "node:path"
 import crypto from "node:crypto"
 import matter from "gray-matter"
 import { PDFParse } from "pdf-parse"
+import type { JsonValue, NormalizedDocument, NormalizeInput } from "@/app/types"
 
-export type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue }
-
-export type NormalizedDocument = {
-  sourceType: "md" | "txt" | "pdf"
-  sourceUri: string
-  title: string
-  checksum: string
-  metadata: Record<string, JsonValue>
-  content: string
-}
-
-type NormalizeInput = {
-  filePath: string
-  rawContent?: string
-  buffer?: Buffer
-}
 
 function sha256(input: string | Buffer) {
   return crypto.createHash("sha256").update(input).digest("hex")
@@ -33,6 +12,12 @@ function sha256(input: string | Buffer) {
 
 function titleFromFilePath(filePath: string) {
   return path.basename(filePath, path.extname(filePath)).replace(/[-_]+/g, " ").trim()
+}
+
+function sourceUriFromFilePath(filePath: string) {
+  const normalized = path.isAbsolute(filePath) ? path.relative(process.cwd(), filePath) : filePath
+
+  return normalized.split(path.sep).join("/")
 }
 
 function sourceTypeFromPath(filePath: string): "md" | "txt" | "pdf" {
@@ -45,7 +30,7 @@ function sourceTypeFromPath(filePath: string): "md" | "txt" | "pdf" {
 
 export async function normalizeDocument(input: NormalizeInput): Promise<NormalizedDocument> {
   const sourceType = sourceTypeFromPath(input.filePath)
-  const sourceUri = input.filePath
+  const sourceUri = sourceUriFromFilePath(input.filePath)
   const baseTitle = titleFromFilePath(input.filePath)
 
   if (sourceType === "pdf") {
@@ -62,7 +47,8 @@ export async function normalizeDocument(input: NormalizeInput): Promise<Normaliz
       metadata: {
         pageCount: parsed.total,
       },
-      content: parsed.text.trim(),
+      content: parsed.pages.map(p => p.text).join("\n\n"),
+      pages: parsed.pages
     }
     } catch (error) {
       console.error("PDF parse failed:", input.filePath)

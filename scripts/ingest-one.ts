@@ -1,31 +1,16 @@
 import path from "node:path"
 import { loadDocument } from "../app/lib/ingest/loadDocument"
+import { persistNormalizedDocument } from "../app/lib/ingest/persistDocument"
 import { prisma } from "../app/server/db/prisma"
 
 async function main() {
   const filePath = path.resolve("app/sample-files/demo1.pdf")
 
   const normalized = await loadDocument(filePath)
-
-  const record = await prisma.document.upsert({
-    where: { checksum: normalized.checksum },
-    update: {
-      sourceType: normalized.sourceType,
-      sourceUri: normalized.sourceUri,
-      title: normalized.title,
-      metadata: normalized.metadata,
-    },
-    create: {
-      sourceType: normalized.sourceType,
-      sourceUri: normalized.sourceUri,
-      title: normalized.title,
-      checksum: normalized.checksum,
-      metadata: normalized.metadata,
-    },
-  })
+  const record = await persistNormalizedDocument(normalized)
 
   const fetched = await prisma.document.findUnique({
-    where: { checksum: normalized.checksum },
+    where: { sourceUri: normalized.sourceUri },
     include: { chunks: true },
   })
 

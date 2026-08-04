@@ -8,6 +8,7 @@ const createManyMock = vi.fn()
 const countMock = vi.fn()
 const transactionMock = vi.fn()
 const chunkDocumentMock = vi.fn()
+const embedChunksForDocumentMock = vi.fn()
 
 vi.mock("@/app/server/db/prisma", () => ({
   prisma: {
@@ -20,6 +21,12 @@ vi.mock("@/app/server/db/prisma", () => ({
 vi.mock("../../lib/ingest/chunkDocument", () => ({
   chunkDocument: chunkDocumentMock,
 }))
+
+vi.mock("../../lib/ingest/embedChunks", () => ({
+  embedChunksForDocument: embedChunksForDocumentMock,
+}))
+
+const API_KEY = "test-api-key"
 
 function baseNormalized(overrides: Partial<NormalizedDocument> = {}): NormalizedDocument {
   return {
@@ -45,7 +52,7 @@ describe("persistNormalizedDocument", () => {
     chunkDocumentMock.mockResolvedValue([{ chunkIndex: 0, content: "hello", metadata: {} }])
 
     const { persistNormalizedDocument } = await import("../../lib/ingest/persistDocument")
-    const record = await persistNormalizedDocument(baseNormalized())
+    const record = await persistNormalizedDocument(baseNormalized(), API_KEY)
 
     expect(record).toEqual({ id: "doc-1" })
     expect(upsertMock).toHaveBeenCalledTimes(1)
@@ -54,19 +61,21 @@ describe("persistNormalizedDocument", () => {
     expect(createManyMock).toHaveBeenCalledWith({
       data: [{ documentId: "doc-1", chunkIndex: 0, content: "hello", metadata: {} }],
     })
+    expect(embedChunksForDocumentMock).toHaveBeenCalledWith("doc-1", API_KEY)
   })
 
-  it("skips rechunking when the checksum is unchanged and chunks already exist", async () => {
+  it("skips rechunking when the checksum is unchanged and chunks already exist, but still calls embedChunksForDocument to backfill any missing embeddings", async () => {
     findUniqueMock.mockResolvedValue({ id: "doc-1", checksum: "checksum-1" })
     upsertMock.mockResolvedValue({ id: "doc-1" })
     countMock.mockResolvedValue(1)
 
     const { persistNormalizedDocument } = await import("../../lib/ingest/persistDocument")
-    await persistNormalizedDocument(baseNormalized({ checksum: "checksum-1" }))
+    await persistNormalizedDocument(baseNormalized({ checksum: "checksum-1" }), API_KEY)
 
     expect(countMock).toHaveBeenCalledWith({ where: { documentId: "doc-1" } })
     expect(chunkDocumentMock).not.toHaveBeenCalled()
     expect(transactionMock).not.toHaveBeenCalled()
+    expect(embedChunksForDocumentMock).toHaveBeenCalledWith("doc-1", API_KEY)
   })
 
   it("backfills chunks when the checksum is unchanged but no chunks exist yet", async () => {
@@ -76,10 +85,11 @@ describe("persistNormalizedDocument", () => {
     chunkDocumentMock.mockResolvedValue([{ chunkIndex: 0, content: "hello", metadata: {} }])
 
     const { persistNormalizedDocument } = await import("../../lib/ingest/persistDocument")
-    await persistNormalizedDocument(baseNormalized({ checksum: "checksum-1" }))
+    await persistNormalizedDocument(baseNormalized({ checksum: "checksum-1" }), API_KEY)
 
     expect(chunkDocumentMock).toHaveBeenCalledTimes(1)
     expect(transactionMock).toHaveBeenCalledTimes(1)
+    expect(embedChunksForDocumentMock).toHaveBeenCalledWith("doc-1", API_KEY)
   })
 
   it("does not check chunk count or rechunk when content is empty", async () => {
@@ -87,11 +97,12 @@ describe("persistNormalizedDocument", () => {
     upsertMock.mockResolvedValue({ id: "doc-1" })
 
     const { persistNormalizedDocument } = await import("../../lib/ingest/persistDocument")
-    await persistNormalizedDocument(baseNormalized({ checksum: "checksum-1", content: "   " }))
+    await persistNormalizedDocument(baseNormalized({ checksum: "checksum-1", content: "   " }), API_KEY)
 
     expect(countMock).not.toHaveBeenCalled()
     expect(chunkDocumentMock).not.toHaveBeenCalled()
     expect(transactionMock).not.toHaveBeenCalled()
+    expect(embedChunksForDocumentMock).toHaveBeenCalledWith("doc-1", API_KEY)
   })
 
   it("rechunks when the checksum changed", async () => {
@@ -100,10 +111,11 @@ describe("persistNormalizedDocument", () => {
     chunkDocumentMock.mockResolvedValue([{ chunkIndex: 0, content: "new", metadata: {} }])
 
     const { persistNormalizedDocument } = await import("../../lib/ingest/persistDocument")
-    await persistNormalizedDocument(baseNormalized({ checksum: "new-checksum" }))
+    await persistNormalizedDocument(baseNormalized({ checksum: "new-checksum" }), API_KEY)
 
     expect(chunkDocumentMock).toHaveBeenCalledTimes(1)
     expect(transactionMock).toHaveBeenCalledTimes(1)
     expect(deleteManyMock).toHaveBeenCalledWith({ where: { documentId: "doc-1" } })
+    expect(embedChunksForDocumentMock).toHaveBeenCalledWith("doc-1", API_KEY)
   })
 })

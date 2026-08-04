@@ -2,9 +2,10 @@
 import { prisma } from "@/app/server/db/prisma"
 import { loadDocument } from "./loadDocument"
 import { chunkDocument } from "./chunkDocument"
+import { embedChunksForDocument } from "./embedChunks"
 import type { NormalizedDocument } from "@/app/types"
 
-export async function persistNormalizedDocument(normalized: NormalizedDocument) {
+export async function persistNormalizedDocument(normalized: NormalizedDocument, apiKey: string) {
   const fetched = await prisma.document.findUnique({
     where: { sourceUri: normalized.sourceUri },
     select: { id: true, checksum: true },
@@ -52,10 +53,12 @@ export async function persistNormalizedDocument(normalized: NormalizedDocument) 
     ])
   }
 
+  await embedChunksForDocument(record.id, apiKey)
+
   return record
 }
 
-export async function ingestAndPersistDocument(filePath: string) {
+export async function ingestAndPersistDocument(filePath: string, apiKey: string) {
   const normalized = await loadDocument(filePath)
-  return persistNormalizedDocument(normalized)
+  return persistNormalizedDocument(normalized, apiKey)
 }

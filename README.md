@@ -1,6 +1,10 @@
-# ReadTheDocs AI
+<p align="center">
+  <img src="public/readmydocs.png" alt="ReadMyDocs AI logo" width="120" />
+</p>
 
-ReadTheDocs AI is a grounded document Q&A app built with Next.js, Prisma, PostgreSQL, and pgvector.
+# ReadMyDocs AI
+
+ReadMyDocs AI is a grounded document Q&A app built with Next.js, Prisma, PostgreSQL, and pgvector.
 
 It lets you ask questions in natural language and returns answers backed by real document sources, with inline citations, a “Why this answer?” trace, and evaluation metrics to measure retrieval quality and groundedness.
 

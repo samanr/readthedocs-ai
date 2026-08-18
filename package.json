@@ -10,7 +10,9 @@
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:run": "vitest run",
-    "ingest:one": "tsx scripts/ingest-one.ts"
+    "ingest:one": "tsx scripts/ingest-one.ts",
+    "embed:one": "tsx scripts/embed-document.ts",
+    "query": "tsx scripts/query-chunks.ts"
   },
   "dependencies": {
     "@langchain/openai": "^1.5.5",

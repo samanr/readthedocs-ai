@@ -44,26 +44,24 @@ export default function Home() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="relative flex flex-col items-center gap-4 py-8">
-        <div className="absolute right-4 top-4">
+      <div className="relative">
+        <md-navigation-bar active-index={NAV_ITEMS.findIndex((item) => item.key === active)}>
+          {NAV_ITEMS.map((item) => (
+            <md-navigation-tab
+              key={item.key}
+              label={item.label}
+              active={item.key === active}
+              onClick={() => setActive(item.key)}
+            >
+              <span slot="active-icon">{item.icon}</span>
+              <span slot="inactive-icon">{item.icon}</span>
+            </md-navigation-tab>
+          ))}
+        </md-navigation-bar>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2">
           <ThemeToggle />
         </div>
-        <Logo />
-      </header>
-
-      <md-navigation-bar active-index={NAV_ITEMS.findIndex((item) => item.key === active)}>
-        {NAV_ITEMS.map((item) => (
-          <md-navigation-tab
-            key={item.key}
-            label={item.label}
-            active={item.key === active}
-            onClick={() => setActive(item.key)}
-          >
-            <span slot="active-icon">{item.icon}</span>
-            <span slot="inactive-icon">{item.icon}</span>
-          </md-navigation-tab>
-        ))}
-      </md-navigation-bar>
+      </div>
 
       <md-divider />
 
@@ -77,6 +75,7 @@ export default function Home() {
           <RefreshIcon size={20} />
           <span className="md-typescale-label-medium">Read Another Doc!</span>
         </button>
+
         {active === "home" ? (
           <HomePanel uploadedFileName={uploadedFileName} onUpload={handleUpload} />
         ) : (
@@ -102,26 +101,29 @@ function HomePanel({
   }
 
   return (
-    <div
-      className="flex w-fit flex-col items-center gap-4 rounded-2xl p-8 shadow-lg"
-      style={{ backgroundColor: "var(--md-sys-color-surface-container)" }}
-    >
-      <h1 className="md-typescale-title-large flex items-center gap-2" style={{ textTransform: "uppercase" }}>
-        <RepeatIcon size={26} /> 1 document · unlimited questions
-      </h1>
-      <p className="md-typescale-body-large text-center">
-        Upload a document, then ask grounded questions about it.
-      </p>
-      <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
-      <md-filled-card className="flex items-center justify-center p-8">
-        <md-filled-button className="p-2" onClick={() => fileInputRef.current?.click()}>
-          <span slot="icon">
-            <UploadIcon size={18} />
-          </span>
-          <span className="font-bold">Upload document</span>
-        </md-filled-button>
-      </md-filled-card>
-      {uploadedFileName && <p className="md-typescale-body-small">Uploaded: {uploadedFileName}</p>}
+    <div className="flex w-fit flex-col items-center gap-10">
+      <Logo />
+      <div
+        className="flex w-fit flex-col items-center gap-4 rounded-2xl p-8 shadow-lg"
+        style={{ backgroundColor: "var(--md-sys-color-surface-container)" }}
+      >
+        <h1 className="md-typescale-title-large flex items-center gap-2" style={{ textTransform: "uppercase" }}>
+          <RepeatIcon size={26} /> 1 document · unlimited questions
+        </h1>
+        <p className="md-typescale-body-large text-center">
+          Upload a document, then ask grounded questions about it.
+        </p>
+        <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+        <md-filled-card className="flex items-center justify-center p-8">
+          <md-filled-button className="p-2" onClick={() => fileInputRef.current?.click()}>
+            <span slot="icon">
+              <UploadIcon size={18} />
+            </span>
+            <span className="font-bold">Upload document</span>
+          </md-filled-button>
+        </md-filled-card>
+        {uploadedFileName && <p className="md-typescale-body-small">Uploaded: {uploadedFileName}</p>}
+      </div>
     </div>
   )
 }

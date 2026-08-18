@@ -23,6 +23,7 @@ model Document {
   updatedAt    DateTime @updatedAt
 
   chunks       Chunk[]
+  queryRuns    QueryRun[]
 
   @@index([checksum])
 }
@@ -38,4 +39,28 @@ model Chunk {
   createdAt    DateTime @default(now())
 
   @@index([documentId, chunkIndex])
+}
+
+model QueryRun {
+  id               String    @id @default(cuid())
+  question         String
+  documentId       String?
+  document         Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  embeddingModel   String
+  similarityMetric String
+  topK             Int
+
+  retrievedChunks  Json
+
+  generationModel  String?
+  answer           String?
+
+  rating           Int?
+  notes            String?
+
+  createdAt        DateTime  @default(now())
+
+  @@index([documentId])
+  @@index([createdAt])
 }

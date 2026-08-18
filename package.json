@@ -12,7 +12,8 @@
     "test:run": "vitest run",
     "ingest:one": "tsx scripts/ingest-one.ts",
     "embed:one": "tsx scripts/embed-document.ts",
-    "query": "tsx scripts/query-chunks.ts"
+    "query": "tsx scripts/query-chunks.ts",
+    "ask": "tsx scripts/ask.ts"
   },
   "dependencies": {
     "@langchain/openai": "^1.5.5",

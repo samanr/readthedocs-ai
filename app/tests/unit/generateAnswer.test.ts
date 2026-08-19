@@ -58,14 +58,23 @@ describe("generateAnswer", () => {
     expect(messages[1].content).toContain("NIKE sells footwear, apparel, and equipment.")
   })
 
-  it("returns the model's answer text and echoes back the chunks as sources", async () => {
+  it("returns the model's answer text with citation markers stripped, and echoes back the chunks as sources", async () => {
     invokeMock.mockResolvedValue({ content: "NIKE sells footwear and apparel. [1]" })
 
     const { generateAnswer } = await import("../../lib/generation/generateAnswer")
     const result = await generateAnswer("what does NIKE sell?", sampleChunks, "api-key")
 
-    expect(result.answer).toBe("NIKE sells footwear and apparel. [1]")
+    expect(result.answer).toBe("NIKE sells footwear and apparel.")
     expect(result.sources).toEqual(sampleChunks)
+  })
+
+  it("strips multi-number citation markers like [1, 2]", async () => {
+    invokeMock.mockResolvedValue({ content: "NIKE sells footwear and apparel [1, 2]." })
+
+    const { generateAnswer } = await import("../../lib/generation/generateAnswer")
+    const result = await generateAnswer("what does NIKE sell?", sampleChunks, "api-key")
+
+    expect(result.answer).toBe("NIKE sells footwear and apparel.")
   })
 
   it("extracts text when the model returns content as parts instead of a plain string", async () => {

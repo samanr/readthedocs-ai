@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { isAccessAllowed } from "@/app/lib/auth/checkAccess"
 import { normalizeDocument } from "@/app/lib/ingest/normalizeDocument"
 import { persistNormalizedDocument } from "@/app/lib/ingest/persistDocument"
+import { getOpenAIApiKey } from "@/app/lib/openai/client"
 
 const SUPPORTED_EXTENSIONS = [".md", ".txt", ".pdf"]
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid or missing access password." }, { status: 401 })
   }
 
-  const apiKey = process.env.OPENAI_API_KEY
+  const apiKey = getOpenAIApiKey()
   if (!apiKey) {
     return NextResponse.json({ error: "Server is missing OPENAI_API_KEY." }, { status: 500 })
   }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { isAccessAllowed } from "@/app/lib/auth/checkAccess"
 import { computeConfidence } from "@/app/lib/generation/confidence"
 import { answerQuestion } from "@/app/lib/generation/answerQuestion"
+import { getOpenAIApiKey } from "@/app/lib/openai/client"
 import type { RetrievedChunk } from "@/app/types"
 
 function citationLabel(chunk: RetrievedChunk): string {
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid or missing access password." }, { status: 401 })
   }
 
-  const apiKey = process.env.OPENAI_API_KEY
+  const apiKey = getOpenAIApiKey()
   if (!apiKey) {
     return NextResponse.json({ error: "Server is missing OPENAI_API_KEY." }, { status: 500 })
   }

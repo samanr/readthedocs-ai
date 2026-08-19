@@ -1,8 +1,7 @@
-import { ChatOpenAI } from "@langchain/openai"
+import { GENERATION_MODEL, getChatClient } from "@/app/lib/openai/client"
 import type { GenerateAnswerResult, RetrievedChunk } from "@/app/types"
 
-export const GENERATION_MODEL = "gpt-5.6-luna"
-const MAX_TOKENS = 500
+export { GENERATION_MODEL }
 
 const NO_CONTEXT_ANSWER = "I don't have any relevant information to answer that."
 
@@ -54,7 +53,7 @@ export async function generateAnswer(
     return { answer: NO_CONTEXT_ANSWER, sources: [] }
   }
 
-  const chat = new ChatOpenAI({ apiKey, model: GENERATION_MODEL, maxTokens: MAX_TOKENS })
+  const chat = getChatClient(apiKey)
 
   const response = await chat.invoke([
     { role: "system", content: SYSTEM_PROMPT },

@@ -1,9 +1,9 @@
-import { OpenAIEmbeddings } from "@langchain/openai"
 import { prisma } from "@/app/server/db/prisma"
 import { Prisma } from "@/app/generated/prisma"
+import { EMBEDDING_MODEL, getEmbeddingsClient } from "@/app/lib/openai/client"
 import type { RetrievedChunk } from "@/app/types"
 
-export const EMBEDDING_MODEL = "text-embedding-3-small"
+export { EMBEDDING_MODEL }
 export const SIMILARITY_METRIC = "cosine"
 
 export async function retrieveRelevantChunks(
@@ -12,7 +12,7 @@ export async function retrieveRelevantChunks(
   topK = 5,
   documentId?: string
 ): Promise<RetrievedChunk[]> {
-  const embeddings = new OpenAIEmbeddings({ apiKey, model: EMBEDDING_MODEL })
+  const embeddings = getEmbeddingsClient(apiKey)
   const queryVector = await embeddings.embedQuery(question)
   const vectorLiteral = `[${queryVector.join(",")}]`
 

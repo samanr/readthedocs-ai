@@ -36,6 +36,15 @@ function extractText(content: unknown): string {
   return ""
 }
 
+// The model is prompted to ground claims with [n] markers referencing the
+// numbered context (see SYSTEM_PROMPT) -- this improves groundedness, but
+// the markers don't correspond to anything meaningful once rendered (they
+// point at context rank, not the citations list shown in the UI), so strip
+// them from what's actually displayed.
+function stripCitationMarkers(text: string): string {
+  return text.replace(/\s*\[\d+(?:\s*,\s*\d+)*\]/g, "").replace(/ {2,}/g, " ")
+}
+
 export async function generateAnswer(
   question: string,
   chunks: RetrievedChunk[],
@@ -52,5 +61,5 @@ export async function generateAnswer(
     { role: "user", content: `Context:\n${formatContext(chunks)}\n\nQuestion: ${question}` },
   ])
 
-  return { answer: extractText(response.content), sources: chunks }
+  return { answer: stripCitationMarkers(extractText(response.content)), sources: chunks }
 }

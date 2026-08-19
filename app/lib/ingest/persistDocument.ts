@@ -3,13 +3,36 @@ import { prisma } from "@/app/server/db/prisma"
 import { loadDocument } from "./loadDocument"
 import { chunkDocument } from "./chunkDocument"
 import { embedChunksForDocument } from "./embedChunks"
+import type { Document } from "@/app/generated/prisma"
 import type { NormalizedDocument } from "@/app/types"
 
-export async function persistNormalizedDocument(normalized: NormalizedDocument, apiKey: string) {
+export type PersistedDocument = Document & { isDuplicate: boolean }
+
+export async function persistNormalizedDocument(
+  normalized: NormalizedDocument,
+  apiKey: string
+): Promise<PersistedDocument> {
   const fetched = await prisma.document.findUnique({
     where: { sourceUri: normalized.sourceUri },
     select: { id: true, checksum: true },
   })
+
+  // A different sourceUri with the same checksum means this exact content
+  // was already ingested under another name (e.g. a re-download, or the
+  // user lost their chat and re-uploaded a renamed copy). Resume that
+  // existing document instead of creating a second copy and re-embedding —
+  // rejecting here would be a dead end, since uploading is the only way
+  // back into a document's chat.
+  if (!fetched) {
+    const duplicate = await prisma.document.findFirst({
+      where: { checksum: normalized.checksum, sourceUri: { not: normalized.sourceUri } },
+    })
+
+    if (duplicate) {
+      await embedChunksForDocument(duplicate.id, apiKey)
+      return { ...duplicate, isDuplicate: true }
+    }
+  }
 
   const record = await prisma.document.upsert({
     where: { sourceUri: normalized.sourceUri },
@@ -55,7 +78,7 @@ export async function persistNormalizedDocument(normalized: NormalizedDocument, 
 
   await embedChunksForDocument(record.id, apiKey)
 
-  return record
+  return { ...record, isDuplicate: false }
 }
 
 export async function ingestAndPersistDocument(filePath: string, apiKey: string) {

@@ -20,6 +20,16 @@ async function main() {
   const normalized = await loadDocument(filePath)
   const record = await persistNormalizedDocument(normalized, apiKey)
 
+  if (record.isDuplicate) {
+    console.log({
+      normalizedTitle: normalized.title,
+      duplicateOfTitle: record.title,
+      duplicateOfSourceUri: record.sourceUri,
+      savedId: record.id,
+    })
+    return
+  }
+
   const fetched = await prisma.document.findUnique({
     where: { sourceUri: normalized.sourceUri },
     include: { chunks: true },

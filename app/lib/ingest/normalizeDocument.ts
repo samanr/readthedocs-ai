@@ -5,6 +5,15 @@ import matter from "gray-matter"
 import { PDFParse } from "pdf-parse"
 import type { JsonValue, NormalizedDocument, NormalizeInput } from "@/app/types"
 
+// pdfjs-dist normally spins up its worker via a runtime `import(workerSrc)`,
+// which Turbopack's bundled dev/prod output can't resolve ("Setting up fake
+// worker failed: Cannot find module '.../pdf.worker.mjs'"). pdf.worker.mjs
+// sets `globalThis.pdfjsWorker` as a side effect of being loaded (its own
+// last line does this), which lets pdfjs detect the worker is already
+// available and skip that dynamic import entirely — so just importing it
+// for that side effect is enough; no manual wiring needed.
+import "pdfjs-dist/legacy/build/pdf.worker.mjs"
+
 
 function sha256(input: string | Buffer) {
   return crypto.createHash("sha256").update(input).digest("hex")

@@ -60,7 +60,7 @@ export default function Home() {
 
       <md-divider />
 
-      <main className="relative flex flex-1 flex-col items-center justify-center">
+      <main className="relative flex flex-1 flex-col items-center pt-16">
         <button
           type="button"
           onClick={handleReadAnotherDoc}

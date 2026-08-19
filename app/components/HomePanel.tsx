@@ -69,8 +69,9 @@ export function HomePanel({
   }
 
   return (
-    <div className="flex w-fit flex-col items-center gap-10">
-      <Logo />
+    <>
+    <div id="home-panel-container" className="flex w-fit flex-col items-center gap-10">
+    <Logo />
       <div
         className="flex w-fit flex-col items-center gap-4 rounded-2xl p-8 shadow-lg"
         style={{ backgroundColor: "var(--md-sys-color-surface-container)" }}
@@ -106,7 +107,7 @@ export function HomePanel({
             </div>
           </div>
         ) : (
-          <md-filled-card className="flex items-center justify-center p-8">
+          <div className="flex items-center justify-center p-6">
             <md-filled-button
               className="p-2"
               disabled={isUploading}
@@ -126,7 +127,7 @@ export function HomePanel({
               )}
               <span className="font-bold">{isUploading ? "Uploading…" : "Upload document"}</span>
             </md-filled-button>
-          </md-filled-card>
+          </div>
         )}
         {error && (
           <p className="md-typescale-body-small" style={{ color: "var(--md-sys-color-error)" }}>
@@ -135,5 +136,6 @@ export function HomePanel({
         )}
       </div>
     </div>
+    </>
   )
 }

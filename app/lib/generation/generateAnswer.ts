@@ -1,8 +1,7 @@
-import { ChatOpenAI } from "@langchain/openai"
+import { GENERATION_MODEL, getChatClient } from "@/app/lib/openai/client"
 import type { GenerateAnswerResult, RetrievedChunk } from "@/app/types"
 
-export const GENERATION_MODEL = "gpt-5.6-luna"
-const MAX_TOKENS = 500
+export { GENERATION_MODEL }
 
 const NO_CONTEXT_ANSWER = "I don't have any relevant information to answer that."
 
@@ -36,6 +35,15 @@ function extractText(content: unknown): string {
   return ""
 }
 
+// The model is prompted to ground claims with [n] markers referencing the
+// numbered context (see SYSTEM_PROMPT) -- this improves groundedness, but
+// the markers don't correspond to anything meaningful once rendered (they
+// point at context rank, not the citations list shown in the UI), so strip
+// them from what's actually displayed.
+function stripCitationMarkers(text: string): string {
+  return text.replace(/\s*\[\d+(?:\s*,\s*\d+)*\]/g, "").replace(/ {2,}/g, " ")
+}
+
 export async function generateAnswer(
   question: string,
   chunks: RetrievedChunk[],
@@ -45,12 +53,12 @@ export async function generateAnswer(
     return { answer: NO_CONTEXT_ANSWER, sources: [] }
   }
 
-  const chat = new ChatOpenAI({ apiKey, model: GENERATION_MODEL, maxTokens: MAX_TOKENS })
+  const chat = getChatClient(apiKey)
 
   const response = await chat.invoke([
     { role: "system", content: SYSTEM_PROMPT },
     { role: "user", content: `Context:\n${formatContext(chunks)}\n\nQuestion: ${question}` },
   ])
 
-  return { answer: extractText(response.content), sources: chunks }
+  return { answer: stripCitationMarkers(extractText(response.content)), sources: chunks }
 }

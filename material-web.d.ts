@@ -11,6 +11,10 @@ type MdTextFieldProps = MdElementProps & {
   rows?: number
 }
 
+type MdButtonProps = MdElementProps & {
+  disabled?: boolean
+}
+
 type MdNavigationBarProps = MdElementProps & {
   "active-index"?: number
   "hide-inactive-labels"?: boolean
@@ -26,11 +30,11 @@ type MdNavigationTabProps = MdElementProps & {
 declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
-      "md-filled-button": MdElementProps
-      "md-outlined-button": MdElementProps
-      "md-text-button": MdElementProps
-      "md-elevated-button": MdElementProps
-      "md-filled-tonal-button": MdElementProps
+      "md-filled-button": MdButtonProps
+      "md-outlined-button": MdButtonProps
+      "md-text-button": MdButtonProps
+      "md-elevated-button": MdButtonProps
+      "md-filled-tonal-button": MdButtonProps
       "md-outlined-text-field": MdTextFieldProps
       "md-filled-text-field": MdTextFieldProps
       "md-circular-progress": MdElementProps & { indeterminate?: boolean }
@@ -40,7 +44,7 @@ declare module "react" {
       "md-filled-card": MdElementProps
       "md-outlined-card": MdElementProps
       "md-elevated-card": MdElementProps
-      "md-icon-button": MdElementProps
+      "md-icon-button": MdButtonProps
     }
   }
 }

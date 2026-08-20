@@ -1,5 +1,5 @@
-import { OpenAIEmbeddings } from "@langchain/openai"
 import { prisma } from "@/app/server/db/prisma"
+import { getEmbeddingsClient } from "@/app/lib/openai/client"
 
 export async function embedChunksForDocument(documentId: string, apiKey: string) {
   const chunks = await prisma.$queryRaw<Array<{ id: string; content: string }>>`
@@ -8,7 +8,7 @@ export async function embedChunksForDocument(documentId: string, apiKey: string)
 
   if (chunks.length === 0) return
 
-  const embeddings = new OpenAIEmbeddings({ apiKey, model: "text-embedding-3-small" })
+  const embeddings = getEmbeddingsClient(apiKey)
   const vectors = await embeddings.embedDocuments(chunks.map((chunk) => chunk.content))
 
   await prisma.$transaction(

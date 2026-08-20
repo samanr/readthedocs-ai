@@ -1,29 +1,41 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
 
 type Theme = "light" | "dark"
 
-export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme | null>(null)
+const listeners = new Set<() => void>()
 
-  useEffect(() => {
-    const current = document.documentElement.getAttribute("data-theme")
-    setTheme(current === "dark" ? "dark" : "light")
-  }, [])
+function subscribe(listener: () => void) {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+function emitChange() {
+  for (const listener of listeners) listener()
+}
+
+function getSnapshot(): Theme | null {
+  return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"
+}
+
+function getServerSnapshot(): Theme | null {
+  // Avoid a hydration mismatch: the real theme is only known once the
+  // anti-flash script (in layout.tsx) has set data-theme on <html>.
+  return null
+}
+
+export function ThemeToggle() {
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 
   function toggleTheme() {
-    setTheme((prev) => {
-      const next: Theme = prev === "dark" ? "light" : "dark"
-      document.documentElement.setAttribute("data-theme", next)
-      localStorage.setItem("theme", next)
-      return next
-    })
+    const next: Theme = theme === "dark" ? "light" : "dark"
+    document.documentElement.setAttribute("data-theme", next)
+    localStorage.setItem("theme", next)
+    emitChange()
   }
 
   if (theme === null) {
-    // Avoid a hydration mismatch: the real theme is only known once the
-    // anti-flash script (in layout.tsx) has set data-theme on <html>.
     return <div className="h-10 w-10" aria-hidden="true" />
   }
 

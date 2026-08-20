@@ -8,7 +8,10 @@ ReadMyDocs AI is a grounded document Q&A app built with Next.js, Prisma, Postgre
 
 Upload a document, then ask questions about it in natural language. Answers are generated only from the chunks retrieved for that question, with inline citations back to the page or section they came from.
 
-<video width="640" height="360" src='public/ui-demo.mp4' controls/>
+<video width="640" height="360" controls preload>
+  <source src="public/ui-demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 
 ## What this project does

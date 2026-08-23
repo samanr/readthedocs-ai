@@ -13,6 +13,11 @@ Upload a document, then ask questions about it in natural language. Answers are 
   Your browser does not support the video tag.
 </video>
 
+<p align="center" >
+  <img src="public/rag_architecture_langsmith_eval.png" alt="ReadMyDocs AI logo" width="600" />
+</p>
+
+
 
 ## What this project does
 

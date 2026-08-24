@@ -17,6 +17,10 @@ Upload a document, then ask questions about it in natural language. Answers are 
   <img src="public/rag_architecture_langsmith_eval.png" alt="ReadMyDocs AI logo" width="600" />
 </p>
 
+<img width="1260" height="600" alt="screencapture-localhost-3000-2026-08-24-15_18_08" src="https://github.com/user-attachments/assets/d786b8ab-18c0-4a78-8f72-e6d84b25cf53" /> <img width="2408" height="2442" alt="screencapture-localhost-3000-2026-08-24-15_18_31" src="https://github.com/user-attachments/assets/cb777763-a467-4e57-8ee4-24eba36bcb1f" />
+
+
+
 
 
 ## What this project does

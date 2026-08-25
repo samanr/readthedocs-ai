@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { isAccessAllowed } from "@/app/lib/auth/checkAccess"
-import { computeConfidence } from "@/app/lib/generation/confidence"
 import { answerQuestion } from "@/app/lib/generation/answerQuestion"
 import { getOpenAIApiKey } from "@/app/lib/openai/client"
 import type { RetrievedChunk } from "@/app/types"
@@ -35,9 +34,8 @@ export async function POST(request: Request) {
   try {
     const result = await answerQuestion(body.question, apiKey, documentId, topK)
     const citations = [...new Set(result.sources.map(citationLabel))]
-    const confidence = computeConfidence(result.sources)
 
-    return NextResponse.json({ answer: result.answer, citations, confidence })
+    return NextResponse.json({ answer: result.answer, citations, evaluation: result.evaluation })
   } catch (error) {
     console.error("Failed to answer question:", error)
     return NextResponse.json(

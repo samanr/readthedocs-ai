@@ -55,6 +55,7 @@ model QueryRun {
 
   generationModel  String?
   answer           String?
+  evaluation       Json?
 
   rating           Int?
   notes            String?

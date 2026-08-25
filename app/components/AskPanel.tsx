@@ -7,7 +7,8 @@ import "@material/web/progress/circular-progress.js"
 import "@material/web/textfield/outlined-text-field.js"
 import { ACCESS_PASSWORD_HEADER } from "@/app/lib/auth/checkAccess"
 import type { ChatMessage, UploadedDocument } from "@/app/types"
-import { ConfidenceBadge } from "./ConfidenceBadge"
+import { EvaluationBox } from "./EvaluationBox"
+import { EvaluationGuide } from "./EvaluationGuide"
 import { FormattedAnswer } from "./FormattedAnswer"
 import { SendIcon } from "./icons"
 
@@ -73,7 +74,7 @@ export function AskPanel({
                 ...message,
                 content: data.answer,
                 citations: data.citations,
-                confidence: data.confidence,
+                evaluation: data.evaluation,
                 isLoading: false,
               }
             : message
@@ -92,71 +93,74 @@ export function AskPanel({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col p-8">
-      <p
-        className="md-typescale-label-large pb-3"
-        style={{ color: "var(--md-sys-color-on-surface-variant)" }}
-      >
-        Asking about: <span className="font-bold">{uploadedDocument.title}</span>
-      </p>
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
-        {messages.map((message) => (
-          <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className="relative max-w-[80%] rounded-2xl px-4 py-3"
-              style={{
-                backgroundColor: message.isError
-                  ? "var(--md-sys-color-error-container)"
-                  : message.role === "user"
-                    ? "var(--md-sys-color-primary-container)"
-                    : "var(--md-sys-color-surface-container)",
-                color: message.isError
-                  ? "var(--md-sys-color-on-error-container)"
-                  : message.role === "user"
-                    ? "var(--md-sys-color-on-primary-container)"
-                    : "var(--md-sys-color-on-surface)",
-              }}
-            >
-              {message.isLoading ? (
-                <md-circular-progress
-                  indeterminate
-                  style={{ "--md-circular-progress-size": "20px" } as React.CSSProperties}
-                />
-              ) : message.role === "assistant" ? (
-                <>
-                  {message.confidence && !message.isError && (
-                    <ConfidenceBadge level={message.confidence.level} reason={message.confidence.reason} />
-                  )}
-                  <FormattedAnswer content={message.content} />
-                  {message.citations && message.citations.length > 0 && (
-                    <p className="md-typescale-body-small mt-1 opacity-70">[{message.citations.join(", ")}]</p>
-                  )}
-                </>
-              ) : (
-                <p className="md-typescale-body-medium">{message.content}</p>
-              )}
+    <div className="mx-auto flex w-full min-h-0 max-w-5xl flex-1 gap-6 p-8">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <p
+          className="md-typescale-label-large pb-3"
+          style={{ color: "var(--md-sys-color-on-surface-variant)" }}
+        >
+          Asking about: <span className="font-bold">{uploadedDocument.title}</span>
+        </p>
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+          {messages.map((message) => (
+            <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div
+                className="relative max-w-[80%] rounded-2xl px-4 py-3"
+                style={{
+                  backgroundColor: message.isError
+                    ? "var(--md-sys-color-error-container)"
+                    : message.role === "user"
+                      ? "var(--md-sys-color-primary-container)"
+                      : "var(--md-sys-color-surface-container)",
+                  color: message.isError
+                    ? "var(--md-sys-color-on-error-container)"
+                    : message.role === "user"
+                      ? "var(--md-sys-color-on-primary-container)"
+                      : "var(--md-sys-color-on-surface)",
+                }}
+              >
+                {message.isLoading ? (
+                  <md-circular-progress
+                    indeterminate
+                    style={{ "--md-circular-progress-size": "20px" } as React.CSSProperties}
+                  />
+                ) : message.role === "assistant" ? (
+                  <>
+                    {message.evaluation && !message.isError && (
+                      <EvaluationBox evaluation={message.evaluation} />
+                    )}
+                    <FormattedAnswer content={message.content} />
+                    {message.citations && message.citations.length > 0 && (
+                      <p className="md-typescale-body-small mt-1 opacity-70">[{message.citations.join(", ")}]</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="md-typescale-body-medium">{message.content}</p>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+        <div className="flex shrink-0 items-end gap-2 pt-8">
+          <md-outlined-text-field
+            ref={inputRef}
+            className="flex-1"
+            label="Ask a question"
+            placeholder={`Ask about ${uploadedDocument.title}`}
+            disabled={isSending}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault()
+                handleSend()
+              }
+            }}
+          />
+          <md-icon-button title="Send" aria-label="Send" disabled={isSending} onClick={handleSend}>
+            <SendIcon />
+          </md-icon-button>
+        </div>
       </div>
-      <div className="flex items-end gap-2 pt-8">
-        <md-outlined-text-field
-          ref={inputRef}
-          className="flex-1"
-          label="Ask a question"
-          placeholder={`Ask about ${uploadedDocument.title}`}
-          disabled={isSending}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault()
-              handleSend()
-            }
-          }}
-        />
-        <md-icon-button title="Send" aria-label="Send" disabled={isSending} onClick={handleSend}>
-          <SendIcon />
-        </md-icon-button>
-      </div>
+      <EvaluationGuide />
     </div>
   )
 }

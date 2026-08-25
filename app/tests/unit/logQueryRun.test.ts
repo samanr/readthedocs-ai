@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import type { RetrievedChunk } from "@/app/types"
+import { Prisma } from "@/app/generated/prisma"
+import type { EvaluationResult, RetrievedChunk } from "@/app/types"
 
 const createMock = vi.fn()
 
@@ -49,6 +50,7 @@ describe("logQueryRun", () => {
         retrievedChunks: sampleChunks,
         generationModel: undefined,
         answer: undefined,
+        evaluation: Prisma.JsonNull,
       },
     })
   })
@@ -70,6 +72,29 @@ describe("logQueryRun", () => {
         generationModel: "gpt-5.6-luna",
         answer: "This is about NIKE's annual report.",
       }),
+    })
+  })
+
+  it("persists a provided evaluation as-is", async () => {
+    createMock.mockResolvedValue({ id: "run-3" })
+    const evaluation: EvaluationResult = {
+      faithfulness: 0.9,
+      answerRelevancy: 0.8,
+      precision: 0.7,
+      recall: 0.6,
+      reasoning: "Looks solid.",
+    }
+
+    const { logQueryRun } = await import("../../lib/observability/logQueryRun")
+    await logQueryRun({
+      question: "what is this about?",
+      topK: 5,
+      retrievedChunks: sampleChunks,
+      evaluation,
+    })
+
+    expect(createMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ evaluation }),
     })
   })
 })

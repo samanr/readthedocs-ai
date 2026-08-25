@@ -3,10 +3,12 @@ import { Prisma } from "@/app/generated/prisma"
 import type { EvaluationResult, RetrievedChunk } from "@/app/types"
 
 const createMock = vi.fn()
+const findUniqueMock = vi.fn()
+const updateMock = vi.fn()
 
 vi.mock("@/app/server/db/prisma", () => ({
   prisma: {
-    queryRun: { create: createMock },
+    queryRun: { create: createMock, findUnique: findUniqueMock, update: updateMock },
   },
 }))
 
@@ -81,8 +83,9 @@ describe("logQueryRun", () => {
       faithfulness: 0.9,
       answerRelevancy: 0.8,
       precision: 0.7,
-      recall: 0.6,
       reasoning: "Looks solid.",
+      recall: null,
+      recallReasoning: null,
     }
 
     const { logQueryRun } = await import("../../lib/observability/logQueryRun")
@@ -96,5 +99,67 @@ describe("logQueryRun", () => {
     expect(createMock).toHaveBeenCalledWith({
       data: expect.objectContaining({ evaluation }),
     })
+  })
+})
+
+describe("getQueryRunForRecall", () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it("returns question, answer, and retrievedChunks for an existing run", async () => {
+    findUniqueMock.mockResolvedValue({ question: "what is this?", answer: "the answer", retrievedChunks: sampleChunks })
+
+    const { getQueryRunForRecall } = await import("../../lib/observability/logQueryRun")
+    const result = await getQueryRunForRecall("run-1")
+
+    expect(findUniqueMock).toHaveBeenCalledWith({
+      where: { id: "run-1" },
+      select: { question: true, answer: true, retrievedChunks: true },
+    })
+    expect(result).toEqual({ question: "what is this?", answer: "the answer", retrievedChunks: sampleChunks })
+  })
+
+  it("returns null when the run doesn't exist", async () => {
+    findUniqueMock.mockResolvedValue(null)
+
+    const { getQueryRunForRecall } = await import("../../lib/observability/logQueryRun")
+    expect(await getQueryRunForRecall("missing")).toBeNull()
+  })
+})
+
+describe("updateQueryRunRecall", () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it("merges recall and recallReasoning into the existing evaluation JSON", async () => {
+    findUniqueMock.mockResolvedValue({
+      evaluation: { faithfulness: 0.9, answerRelevancy: 0.8, precision: 0.7, reasoning: "ok", recall: null, recallReasoning: null },
+    })
+
+    const { updateQueryRunRecall } = await import("../../lib/observability/logQueryRun")
+    await updateQueryRunRecall("run-1", 0.6, "some chunks missed context")
+
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: "run-1" },
+      data: {
+        evaluation: {
+          faithfulness: 0.9,
+          answerRelevancy: 0.8,
+          precision: 0.7,
+          reasoning: "ok",
+          recall: 0.6,
+          recallReasoning: "some chunks missed context",
+        },
+      },
+    })
+  })
+
+  it("throws when the run doesn't exist", async () => {
+    findUniqueMock.mockResolvedValue(null)
+
+    const { updateQueryRunRecall } = await import("../../lib/observability/logQueryRun")
+    await expect(updateQueryRunRecall("missing", 0.6, "x")).rejects.toThrow("QueryRun missing not found")
   })
 })

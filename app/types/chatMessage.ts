@@ -6,6 +6,7 @@ export type ChatMessage = {
   content: string
   citations?: string[]
   evaluation?: EvaluationResult | null
+  queryRunId?: string | null
   isLoading?: boolean
   isError?: boolean
 }

@@ -75,6 +75,7 @@ export function AskPanel({
                 content: data.answer,
                 citations: data.citations,
                 evaluation: data.evaluation,
+                queryRunId: data.queryRunId,
                 isLoading: false,
               }
             : message
@@ -92,16 +93,26 @@ export function AskPanel({
     }
   }
 
+  function handleRecallComputed(messageId: string, recall: number, recallReasoning: string) {
+    onMessagesChange((prev) =>
+      prev.map((message) =>
+        message.id === messageId && message.evaluation
+          ? { ...message, evaluation: { ...message.evaluation, recall, recallReasoning } }
+          : message
+      )
+    )
+  }
+
   return (
-    <div className="mx-auto flex w-full min-h-0 max-w-5xl flex-1 gap-6 p-8">
-      <div className="flex min-h-0 flex-1 flex-col">
+    <div className="mx-auto flex w-full max-w-5xl flex-1 gap-6 p-8">
+      <div className="flex flex-1 flex-col">
         <p
           className="md-typescale-label-large pb-3"
           style={{ color: "var(--md-sys-color-on-surface-variant)" }}
         >
           Asking about: <span className="font-bold">{uploadedDocument.title}</span>
         </p>
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
           {messages.map((message) => (
             <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
@@ -127,7 +138,14 @@ export function AskPanel({
                 ) : message.role === "assistant" ? (
                   <>
                     {message.evaluation && !message.isError && (
-                      <EvaluationBox evaluation={message.evaluation} />
+                      <EvaluationBox
+                        evaluation={message.evaluation}
+                        queryRunId={message.queryRunId ?? null}
+                        accessPassword={accessPassword}
+                        onRecallComputed={(recall, recallReasoning) =>
+                          handleRecallComputed(message.id, recall, recallReasoning)
+                        }
+                      />
                     )}
                     <FormattedAnswer content={message.content} />
                     {message.citations && message.citations.length > 0 && (
@@ -141,7 +159,7 @@ export function AskPanel({
             </div>
           ))}
         </div>
-        <div className="flex shrink-0 items-end gap-2 pt-8">
+        <div className="flex items-end gap-2 pt-8">
           <md-outlined-text-field
             ref={inputRef}
             className="flex-1"

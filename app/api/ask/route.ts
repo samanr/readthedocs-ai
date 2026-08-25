@@ -34,7 +34,12 @@ export async function POST(request: Request) {
     const result = await answerQuestion(body.question, apiKey, documentId)
     const citations = [...new Set(result.sources.map(citationLabel))]
 
-    return NextResponse.json({ answer: result.answer, citations, evaluation: result.evaluation })
+    return NextResponse.json({
+      answer: result.answer,
+      citations,
+      evaluation: result.evaluation,
+      queryRunId: result.queryRunId,
+    })
   } catch (error) {
     console.error("Failed to answer question:", error)
     return NextResponse.json(

@@ -2,7 +2,7 @@ import { z } from "zod"
 import { createLLMAsJudge } from "openevals"
 import { prisma } from "@/app/server/db/prisma"
 import { getJudgeClient } from "@/app/lib/gemini/client"
-import type { EvaluationResult, RetrievedChunk } from "@/app/types"
+import type { RetrievedChunk } from "@/app/types"
 
 // Judge context is capped so one oversized document can't blow up the
 // per-minute token budget on the free-tier judge model in a single call.
@@ -95,39 +95,66 @@ async function getFullDocumentText(chunks: RetrievedChunk[]): Promise<string> {
     : fullText
 }
 
-export async function evaluateAnswer(
+export type ChunkScopedEvaluation = {
+  faithfulness: number
+  answerRelevancy: number
+  precision: number
+  reasoning: string
+}
+
+export type RecallEvaluation = {
+  recall: number
+  recallReasoning: string
+}
+
+// Runs on every answer -- cheap, small context (question + answer + the
+// chunks already retrieved).
+export async function evaluateChunkScoped(
   question: string,
   answer: string,
   chunks: RetrievedChunk[],
   apiKey: string
-): Promise<EvaluationResult> {
+): Promise<ChunkScopedEvaluation> {
   const judge = getJudgeClient(apiKey)
   const context = formatContext(chunks)
 
-  const chunkScopedEvaluator = createLLMAsJudge({
+  const evaluator = createLLMAsJudge({
     prompt: CHUNK_SCOPED_PROMPT,
     judge,
     outputSchema: ChunkScopedSchema,
   })
 
-  const recallEvaluator = createLLMAsJudge({
+  const result = await evaluator({ question, answer, context })
+
+  return {
+    faithfulness: result.faithfulness as number,
+    answerRelevancy: result.answerRelevancy as number,
+    precision: result.precision as number,
+    reasoning: result.reasoning as string,
+  }
+}
+
+// On-demand only -- expensive, sends the full (capped) document. Triggered
+// by the user via a "run recall check" action, not on every answer.
+export async function evaluateRecall(
+  question: string,
+  chunks: RetrievedChunk[],
+  apiKey: string
+): Promise<RecallEvaluation> {
+  const judge = getJudgeClient(apiKey)
+  const context = formatContext(chunks)
+  const fullDocument = await getFullDocumentText(chunks)
+
+  const evaluator = createLLMAsJudge({
     prompt: RECALL_PROMPT,
     judge,
     outputSchema: RecallSchema,
   })
 
-  const chunkScopedPromise = chunkScopedEvaluator({ question, answer, context })
-  const recallPromise = getFullDocumentText(chunks).then((fullDocument) =>
-    recallEvaluator({ question, context, fullDocument })
-  )
-
-  const [chunkScoped, recall] = await Promise.all([chunkScopedPromise, recallPromise])
+  const result = await evaluator({ question, context, fullDocument })
 
   return {
-    faithfulness: chunkScoped.faithfulness as number,
-    answerRelevancy: chunkScoped.answerRelevancy as number,
-    precision: chunkScoped.precision as number,
-    recall: recall.recall as number,
-    reasoning: `${chunkScoped.reasoning as string}\n\n${recall.reasoning as string}`,
+    recall: result.recall as number,
+    recallReasoning: result.reasoning as string,
   }
 }

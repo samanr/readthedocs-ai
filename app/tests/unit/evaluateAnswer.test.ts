@@ -34,53 +34,53 @@ const sampleChunks: RetrievedChunk[] = [
   },
 ]
 
-describe("evaluateAnswer", () => {
+describe("evaluateChunkScoped", () => {
   beforeEach(() => {
     vi.resetAllMocks()
     getJudgeClientMock.mockReturnValue({ fakeModel: true })
-    findManyMock.mockResolvedValue([{ content: "NIKE sells shoes." }])
     chunkScopedEvaluatorMock.mockResolvedValue({
       faithfulness: 0.9,
       answerRelevancy: 0.8,
       precision: 0.7,
       reasoning: "chunk reasoning",
     })
-    recallEvaluatorMock.mockResolvedValue({ recall: 0.6, reasoning: "recall reasoning" })
-
-    createLLMAsJudgeMock.mockImplementation(({ prompt }: { prompt: string }) =>
-      prompt.includes("{fullDocument}") ? recallEvaluatorMock : chunkScopedEvaluatorMock
-    )
+    createLLMAsJudgeMock.mockReturnValue(chunkScopedEvaluatorMock)
   })
 
-  it("combines chunk-scoped scores with the recall score and merges reasoning", async () => {
-    const { evaluateAnswer } = await import("../../lib/generation/evaluateAnswer")
+  it("scores faithfulness, relevancy, and precision from the retrieved chunks only", async () => {
+    const { evaluateChunkScoped } = await import("../../lib/generation/evaluateAnswer")
 
-    const result = await evaluateAnswer("what does NIKE sell?", "NIKE sells shoes.", sampleChunks, "gemini-key")
+    const result = await evaluateChunkScoped("what does NIKE sell?", "NIKE sells shoes.", sampleChunks, "gemini-key")
 
     expect(getJudgeClientMock).toHaveBeenCalledWith("gemini-key")
-    expect(result).toEqual({
-      faithfulness: 0.9,
-      answerRelevancy: 0.8,
-      precision: 0.7,
-      recall: 0.6,
-      reasoning: "chunk reasoning\n\nrecall reasoning",
-    })
-  })
-
-  it("passes the question, formatted context, and answer to the chunk-scoped evaluator", async () => {
-    const { evaluateAnswer } = await import("../../lib/generation/evaluateAnswer")
-    await evaluateAnswer("what does NIKE sell?", "NIKE sells shoes.", sampleChunks, "gemini-key")
-
     expect(chunkScopedEvaluatorMock).toHaveBeenCalledWith({
       question: "what does NIKE sell?",
       answer: "NIKE sells shoes.",
       context: "[1] NIKE sells shoes.",
     })
+    expect(result).toEqual({
+      faithfulness: 0.9,
+      answerRelevancy: 0.8,
+      precision: 0.7,
+      reasoning: "chunk reasoning",
+    })
+    expect(findManyMock).not.toHaveBeenCalled()
+  })
+})
+
+describe("evaluateRecall", () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    getJudgeClientMock.mockReturnValue({ fakeModel: true })
+    findManyMock.mockResolvedValue([{ content: "NIKE sells shoes." }])
+    recallEvaluatorMock.mockResolvedValue({ recall: 0.6, reasoning: "recall reasoning" })
+    createLLMAsJudgeMock.mockReturnValue(recallEvaluatorMock)
   })
 
-  it("reconstructs the full document from all chunks for the retrieved documentIds, ordered by chunkIndex", async () => {
-    const { evaluateAnswer } = await import("../../lib/generation/evaluateAnswer")
-    await evaluateAnswer("what does NIKE sell?", "NIKE sells shoes.", sampleChunks, "gemini-key")
+  it("scores recall against the reconstructed full document", async () => {
+    const { evaluateRecall } = await import("../../lib/generation/evaluateAnswer")
+
+    const result = await evaluateRecall("what does NIKE sell?", sampleChunks, "gemini-key")
 
     expect(findManyMock).toHaveBeenCalledWith({
       where: { documentId: { in: ["doc-1"] } },
@@ -92,13 +92,14 @@ describe("evaluateAnswer", () => {
       context: "[1] NIKE sells shoes.",
       fullDocument: "NIKE sells shoes.",
     })
+    expect(result).toEqual({ recall: 0.6, recallReasoning: "recall reasoning" })
   })
 
-  it("truncates an oversized reconstructed document before sending it to the recall evaluator", async () => {
+  it("truncates an oversized reconstructed document before sending it to the judge", async () => {
     findManyMock.mockResolvedValue([{ content: "x".repeat(60_000) }])
 
-    const { evaluateAnswer } = await import("../../lib/generation/evaluateAnswer")
-    await evaluateAnswer("what does NIKE sell?", "NIKE sells shoes.", sampleChunks, "gemini-key")
+    const { evaluateRecall } = await import("../../lib/generation/evaluateAnswer")
+    await evaluateRecall("what does NIKE sell?", sampleChunks, "gemini-key")
 
     const [{ fullDocument }] = recallEvaluatorMock.mock.calls[0]
     expect(fullDocument.length).toBeLessThan(60_000)

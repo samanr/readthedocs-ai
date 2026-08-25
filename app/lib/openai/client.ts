@@ -2,7 +2,18 @@ import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai"
 
 export const EMBEDDING_MODEL = "text-embedding-3-small"
 export const GENERATION_MODEL = "gpt-5.6-luna"
-const MAX_TOKENS = 500
+
+// gpt-5.6-luna is a reasoning model: its hidden "thinking" tokens are drawn
+// from the same maxTokens budget as the visible answer, and reasoning effort
+// only nudges the average token spend -- it's not a hard cap, so even at
+// "low" effort a single call can still burn the whole budget on reasoning
+// and return an empty answer (finish_reason "length" with 0 visible tokens).
+// Observed this happen intermittently (~50% of calls) at maxTokens 500 for
+// enumeration-style questions ("list Montreal's boroughs and
+// neighbourhoods"). MAX_TOKENS is sized to leave room for a full visible
+// answer even when a reasoning burst hits several hundred tokens.
+const MAX_TOKENS = 2000
+const REASONING_EFFORT = "low"
 
 export function getOpenAIApiKey(): string | null {
   return process.env.OPENAI_API_KEY || null
@@ -26,7 +37,15 @@ let cachedChatClient: { apiKey: string; client: ChatOpenAI } | null = null
 
 export function getChatClient(apiKey: string): ChatOpenAI {
   if (cachedChatClient?.apiKey !== apiKey) {
-    cachedChatClient = { apiKey, client: new ChatOpenAI({ apiKey, model: GENERATION_MODEL, maxTokens: MAX_TOKENS }) }
+    cachedChatClient = {
+      apiKey,
+      client: new ChatOpenAI({
+        apiKey,
+        model: GENERATION_MODEL,
+        maxTokens: MAX_TOKENS,
+        reasoning: { effort: REASONING_EFFORT },
+      }),
+    }
   }
   return cachedChatClient.client
 }

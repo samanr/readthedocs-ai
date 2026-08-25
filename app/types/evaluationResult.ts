@@ -2,6 +2,7 @@ export type EvaluationResult = {
   faithfulness: number
   answerRelevancy: number
   precision: number
-  recall: number
   reasoning: string
+  recall: number | null
+  recallReasoning: string | null
 }

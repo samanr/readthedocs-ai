@@ -1,6 +1,6 @@
 import { retrieveRelevantChunks, DEFAULT_TOP_K } from "@/app/lib/retrieval/retrieveChunks"
 import { generateAnswer, GENERATION_MODEL } from "@/app/lib/generation/generateAnswer"
-import { evaluateAnswer } from "@/app/lib/generation/evaluateAnswer"
+import { evaluateChunkScoped } from "@/app/lib/generation/evaluateAnswer"
 import { getGeminiApiKey } from "@/app/lib/gemini/client"
 import { logQueryRun } from "@/app/lib/observability/logQueryRun"
 import type { EvaluationResult, GenerateAnswerResult, RetrievedChunk } from "@/app/types"
@@ -16,9 +16,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ])
 }
 
-// Evaluation runs on a separate free-tier judge model and is never allowed
-// to block or fail the actual answer -- a missing GEMINI_API_KEY, a judge
-// call failure, or a timeout all just mean no evaluation for this run.
+// Only the cheap chunk-scoped metrics run automatically. Recall is
+// deliberately excluded here -- it's expensive (sends the full document)
+// and only worth computing when a user explicitly asks for it via the
+// "run recall check" progressive-disclosure action, not on every answer.
 async function evaluateIfConfigured(
   question: string,
   answer: string,
@@ -31,7 +32,11 @@ async function evaluateIfConfigured(
   }
 
   try {
-    return await withTimeout(evaluateAnswer(question, answer, chunks, geminiApiKey), EVALUATION_TIMEOUT_MS)
+    const chunkScoped = await withTimeout(
+      evaluateChunkScoped(question, answer, chunks, geminiApiKey),
+      EVALUATION_TIMEOUT_MS
+    )
+    return { ...chunkScoped, recall: null, recallReasoning: null }
   } catch (error) {
     console.error("Evaluation failed:", error)
     return null
@@ -42,13 +47,14 @@ export async function answerQuestion(
   question: string,
   apiKey: string,
   documentId?: string
-): Promise<GenerateAnswerResult & { evaluation: EvaluationResult | null }> {
+): Promise<GenerateAnswerResult & { evaluation: EvaluationResult | null; queryRunId: string | null }> {
   const chunks = await retrieveRelevantChunks(question, apiKey, documentId)
   const result = await generateAnswer(question, chunks, apiKey)
   const evaluation = await evaluateIfConfigured(question, result.answer, chunks)
 
+  let queryRunId: string | null = null
   try {
-    await logQueryRun({
+    const record = await logQueryRun({
       question,
       documentId,
       topK: DEFAULT_TOP_K,
@@ -57,9 +63,10 @@ export async function answerQuestion(
       answer: result.answer,
       evaluation,
     })
+    queryRunId = record.id
   } catch (error) {
     console.error("Failed to log query run:", error)
   }
 
-  return { ...result, evaluation }
+  return { ...result, evaluation, queryRunId }
 }

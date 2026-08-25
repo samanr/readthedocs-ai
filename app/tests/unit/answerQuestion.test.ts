@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import type { EvaluationResult, RetrievedChunk } from "@/app/types"
+import type { RetrievedChunk } from "@/app/types"
 
 const retrieveRelevantChunksMock = vi.fn()
 const generateAnswerMock = vi.fn()
 const logQueryRunMock = vi.fn()
-const evaluateAnswerMock = vi.fn()
+const evaluateChunkScopedMock = vi.fn()
 const getGeminiApiKeyMock = vi.fn()
 
 vi.mock("@/app/lib/retrieval/retrieveChunks", () => ({
@@ -18,7 +18,7 @@ vi.mock("@/app/lib/generation/generateAnswer", () => ({
 }))
 
 vi.mock("@/app/lib/generation/evaluateAnswer", () => ({
-  evaluateAnswer: evaluateAnswerMock,
+  evaluateChunkScoped: evaluateChunkScopedMock,
 }))
 
 vi.mock("@/app/lib/gemini/client", () => ({
@@ -42,11 +42,10 @@ const sampleChunks: RetrievedChunk[] = [
   },
 ]
 
-const sampleEvaluation: EvaluationResult = {
+const sampleChunkScoped = {
   faithfulness: 0.9,
   answerRelevancy: 0.8,
   precision: 0.7,
-  recall: 0.6,
   reasoning: "Looks solid.",
 }
 
@@ -57,16 +56,16 @@ describe("answerQuestion", () => {
     generateAnswerMock.mockResolvedValue({ answer: "the answer", sources: sampleChunks })
     logQueryRunMock.mockResolvedValue({ id: "run-1" })
     getGeminiApiKeyMock.mockReturnValue("gemini-api-key")
-    evaluateAnswerMock.mockResolvedValue(sampleEvaluation)
+    evaluateChunkScopedMock.mockResolvedValue(sampleChunkScoped)
   })
 
-  it("retrieves, generates, evaluates, logs the run, and returns the result", async () => {
+  it("retrieves, generates, evaluates (chunk-scoped only), logs the run, and returns the result with a queryRunId", async () => {
     const { answerQuestion } = await import("../../lib/generation/answerQuestion")
     const result = await answerQuestion("what is this?", "api-key", "doc-1")
 
     expect(retrieveRelevantChunksMock).toHaveBeenCalledWith("what is this?", "api-key", "doc-1")
     expect(generateAnswerMock).toHaveBeenCalledWith("what is this?", sampleChunks, "api-key")
-    expect(evaluateAnswerMock).toHaveBeenCalledWith("what is this?", "the answer", sampleChunks, "gemini-api-key")
+    expect(evaluateChunkScopedMock).toHaveBeenCalledWith("what is this?", "the answer", sampleChunks, "gemini-api-key")
     expect(logQueryRunMock).toHaveBeenCalledWith({
       question: "what is this?",
       documentId: "doc-1",
@@ -74,19 +73,25 @@ describe("answerQuestion", () => {
       retrievedChunks: sampleChunks,
       generationModel: "gpt-5.6-luna",
       answer: "the answer",
-      evaluation: sampleEvaluation,
+      evaluation: { ...sampleChunkScoped, recall: null, recallReasoning: null },
     })
-    expect(result).toEqual({ answer: "the answer", sources: sampleChunks, evaluation: sampleEvaluation })
+    expect(result).toEqual({
+      answer: "the answer",
+      sources: sampleChunks,
+      evaluation: { ...sampleChunkScoped, recall: null, recallReasoning: null },
+      queryRunId: "run-1",
+    })
   })
 
-  it("still returns the answer even when logging the run fails", async () => {
+  it("still returns the answer even when logging the run fails, with queryRunId null", async () => {
     logQueryRunMock.mockRejectedValue(new Error("db unavailable"))
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
 
     const { answerQuestion } = await import("../../lib/generation/answerQuestion")
     const result = await answerQuestion("what is this?", "api-key")
 
-    expect(result).toEqual({ answer: "the answer", sources: sampleChunks, evaluation: sampleEvaluation })
+    expect(result.answer).toBe("the answer")
+    expect(result.queryRunId).toBeNull()
     expect(consoleErrorSpy).toHaveBeenCalled()
 
     consoleErrorSpy.mockRestore()
@@ -99,7 +104,7 @@ describe("answerQuestion", () => {
     const { answerQuestion } = await import("../../lib/generation/answerQuestion")
     const result = await answerQuestion("what is this?", "api-key")
 
-    expect(evaluateAnswerMock).not.toHaveBeenCalled()
+    expect(evaluateChunkScopedMock).not.toHaveBeenCalled()
     expect(result.evaluation).toBeNull()
     expect(logQueryRunMock).toHaveBeenCalledWith(expect.objectContaining({ evaluation: null }))
     expect(consoleErrorSpy).toHaveBeenCalled()
@@ -108,7 +113,7 @@ describe("answerQuestion", () => {
   })
 
   it("returns evaluation: null without failing when the judge call throws", async () => {
-    evaluateAnswerMock.mockRejectedValue(new Error("judge unavailable"))
+    evaluateChunkScopedMock.mockRejectedValue(new Error("judge unavailable"))
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
 
     const { answerQuestion } = await import("../../lib/generation/answerQuestion")

@@ -29,10 +29,9 @@ export async function POST(request: Request) {
   }
 
   const documentId = typeof body.documentId === "string" ? body.documentId : undefined
-  const topK = typeof body.topK === "number" ? body.topK : undefined
 
   try {
-    const result = await answerQuestion(body.question, apiKey, documentId, topK)
+    const result = await answerQuestion(body.question, apiKey, documentId)
     const citations = [...new Set(result.sources.map(citationLabel))]
 
     return NextResponse.json({ answer: result.answer, citations, evaluation: result.evaluation })

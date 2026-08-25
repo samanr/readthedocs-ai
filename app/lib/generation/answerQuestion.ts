@@ -1,4 +1,4 @@
-import { retrieveRelevantChunks } from "@/app/lib/retrieval/retrieveChunks"
+import { retrieveRelevantChunks, DEFAULT_TOP_K } from "@/app/lib/retrieval/retrieveChunks"
 import { generateAnswer, GENERATION_MODEL } from "@/app/lib/generation/generateAnswer"
 import { evaluateAnswer } from "@/app/lib/generation/evaluateAnswer"
 import { getGeminiApiKey } from "@/app/lib/gemini/client"
@@ -41,10 +41,9 @@ async function evaluateIfConfigured(
 export async function answerQuestion(
   question: string,
   apiKey: string,
-  documentId?: string,
-  topK = 5
+  documentId?: string
 ): Promise<GenerateAnswerResult & { evaluation: EvaluationResult | null }> {
-  const chunks = await retrieveRelevantChunks(question, apiKey, topK, documentId)
+  const chunks = await retrieveRelevantChunks(question, apiKey, documentId)
   const result = await generateAnswer(question, chunks, apiKey)
   const evaluation = await evaluateIfConfigured(question, result.answer, chunks)
 
@@ -52,7 +51,7 @@ export async function answerQuestion(
     await logQueryRun({
       question,
       documentId,
-      topK,
+      topK: DEFAULT_TOP_K,
       retrievedChunks: chunks,
       generationModel: GENERATION_MODEL,
       answer: result.answer,

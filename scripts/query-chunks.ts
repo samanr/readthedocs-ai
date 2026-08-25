@@ -4,8 +4,6 @@ import { stdin, stdout } from "node:process"
 import { retrieveRelevantChunks } from "../app/lib/retrieval/retrieveChunks"
 import { prisma } from "../app/server/db/prisma"
 
-const TOP_K = 5
-
 async function main() {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) throw new Error("OPENAI_API_KEY is missing")
@@ -36,7 +34,7 @@ async function main() {
 
   if (!query.trim()) throw new Error("Query cannot be empty")
 
-  const results = await retrieveRelevantChunks(query, apiKey, TOP_K, documentId)
+  const results = await retrieveRelevantChunks(query, apiKey, documentId)
 
   if (results.length === 0) {
     console.log("No results found.")

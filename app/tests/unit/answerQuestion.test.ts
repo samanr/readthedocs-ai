@@ -9,6 +9,7 @@ const getGeminiApiKeyMock = vi.fn()
 
 vi.mock("@/app/lib/retrieval/retrieveChunks", () => ({
   retrieveRelevantChunks: retrieveRelevantChunksMock,
+  DEFAULT_TOP_K: 5,
 }))
 
 vi.mock("@/app/lib/generation/generateAnswer", () => ({
@@ -61,9 +62,9 @@ describe("answerQuestion", () => {
 
   it("retrieves, generates, evaluates, logs the run, and returns the result", async () => {
     const { answerQuestion } = await import("../../lib/generation/answerQuestion")
-    const result = await answerQuestion("what is this?", "api-key", "doc-1", 5)
+    const result = await answerQuestion("what is this?", "api-key", "doc-1")
 
-    expect(retrieveRelevantChunksMock).toHaveBeenCalledWith("what is this?", "api-key", 5, "doc-1")
+    expect(retrieveRelevantChunksMock).toHaveBeenCalledWith("what is this?", "api-key", "doc-1")
     expect(generateAnswerMock).toHaveBeenCalledWith("what is this?", sampleChunks, "api-key")
     expect(evaluateAnswerMock).toHaveBeenCalledWith("what is this?", "the answer", sampleChunks, "gemini-api-key")
     expect(logQueryRunMock).toHaveBeenCalledWith({

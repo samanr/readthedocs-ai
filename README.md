@@ -14,7 +14,7 @@ Upload a document, then ask questions about it in natural language. Answers are 
 </video>
 
 <p align="center" >
-  <img src="public/rag_architecture_langsmith_eval.png" alt="ReadMyDocs AI logo" width="600" />
+  <img src="public/architecture.png" alt="ReadMyDocs AI high-level architecture diagram" width="900" />
 </p>
 
 <img width="1260" height="600" alt="screencapture-localhost-3000-2026-08-24-15_18_08" src="https://github.com/user-attachments/assets/d786b8ab-18c0-4a78-8f72-e6d84b25cf53" /> <img width="2408" height="2442" alt="screencapture-localhost-3000-2026-08-24-15_18_31" src="https://github.com/user-attachments/assets/cb777763-a467-4e57-8ee4-24eba36bcb1f" />
@@ -33,8 +33,8 @@ Upload a document, then ask questions about it in natural language. Answers are 
 - ✅ Generate answers grounded in the retrieved sources (GPT-5.6 Luna).
 - ✅ Show inline citations back to the source page/section.
 - ✅ Log every question/answer run (`QueryRun`) for retrieval-quality tracing.
+- ✅ Evaluate every answer against an LLM judge — faithfulness, answer relevancy, and precision run automatically; recall runs on demand (see [Evaluation](#evaluation) below).
 - ✅ Web UI: Material 3 theme (light/dark), upload flow, and a chat-style ask flow — wired end-to-end to the API.
-- ⏳ Evaluation dashboard for retrieval/groundedness metrics.
 - ⏳ Bring-your-own-key (BYOK): the server currently uses a single shared `OPENAI_API_KEY` for every request; per-request user-supplied keys are planned before any public deployment.
 
 ## Supported document formats
@@ -71,7 +71,19 @@ Documents are split into retrieval-sized chunks using a **recursive + structure-
 
 - **Retrieval** — the question is embedded with the same `text-embedding-3-small` model used for chunks, then the top-K chunks are selected by pgvector cosine distance (`embedding <=> query_vector`), optionally scoped to a single document.
 - **Generation** — the retrieved chunks are passed as numbered context to **GPT-5.6 Luna** (`gpt-5.6-luna`), which is instructed to answer only from that context and cite sources by their `[n]` label.
-- **Observability** — every question/answer run is logged to a `QueryRun` table (question, embedding model, similarity metric, topK, a snapshot of the retrieved chunks, the generation model, and the answer), so retrieval quality can be traced across runs even after chunks are later re-embedded or re-chunked.
+- **Observability** — every question/answer run is logged to a `QueryRun` table (question, embedding model, similarity metric, topK, a snapshot of the retrieved chunks, the generation model, the answer, and its evaluation), so retrieval quality can be traced across runs even after chunks are later re-embedded or re-chunked.
+- **Top-K** — configurable via the `RAG_TOP_K` env var (default 5, clamped 1–50); invalid values fall back to the default with a logged warning.
+
+## Evaluation
+
+Every answer is scored by an LLM-as-judge (`gemini-3.1-flash-lite`, kept on a separate free-tier provider so scoring doesn't add to the OpenAI bill) against four [RAGAS](https://docs.ragas.io)-style metrics: **faithfulness**, **answer relevancy**, **precision**, and **recall**. Scores are shown as colored badges under each answer (`app/components/EvaluationBox.tsx`); a color key explaining the buckets (0.7+ good, 0.4–0.7 worth a second look, below 0.4 likely a problem) is in `app/components/EvaluationGuide.tsx`.
+
+Not all four metrics run at the same time, because they don't cost the same:
+
+- **Faithfulness, answer relevancy, and precision** run automatically on every answer (`evaluateChunkScoped` in `app/lib/generation/evaluateAnswer.ts`). They only need the question, the answer, and the chunks already retrieved for it — cheap, and never allowed to block or fail the actual answer (a missing `GEMINI_API_KEY`, a judge failure, or a timeout just means `evaluation: null`).
+- **Recall** is *on demand*. Scoring recall properly requires reconstructing and sending the judge the *entire* source document (not just the retrieved chunks), which is expensive and was previously run on every single answer. It's now a separate step (`evaluateRecall`, `POST /api/ask/recall`) triggered from a "Run recall check" button that appears under an answer when faithfulness or relevancy dips below 0.7 — the cases where knowing whether retrieval missed relevant context is actually useful. The computed score is merged into the `QueryRun`'s stored evaluation.
+
+An evaluation dashboard for aggregating these scores across runs is still ahead.
 
 ## Web UI
 
@@ -81,25 +93,27 @@ A Material 3 (`@material/web`) interface lives at `app/page.tsx`, split into:
 - `app/components/AskPanel.tsx` — a chat-style thread: your question on the right, the grounded answer on the left with citations shown as `Answer [Page 1, Page 2]`.
 - A light/dark theme toggle (persisted, no flash-of-wrong-theme on load) and a "Read Another Doc!" reset action.
 
-The UI talks to two API routes, both backed by the pipeline above:
+The UI talks to three API routes, all backed by the pipeline above:
 
 | Route | Method | Body | Returns |
 | --- | --- | --- | --- |
 | `/api/documents` | `POST` | `multipart/form-data` — `file` | `{ id, title, sourceUri, sourceType }` |
-| `/api/ask` | `POST` | JSON — `{ question, documentId }` | `{ answer, citations }` |
+| `/api/ask` | `POST` | JSON — `{ question, documentId }` | `{ answer, citations, evaluation, queryRunId }` |
+| `/api/ask/recall` | `POST` | JSON — `{ queryRunId }` | `{ recall, recallReasoning }` |
 
-Both routes read `OPENAI_API_KEY` from the server environment (not from the client — see "Bring-your-own-key" above), and both support an optional shared access-password gate via `APP_ACCESS_PASSWORD` (see [Environment variables](#environment-variables)).
+All three routes read `OPENAI_API_KEY` from the server environment (not from the client — see "Bring-your-own-key" above), and all support an optional shared access-password gate via `APP_ACCESS_PASSWORD` (see [Environment variables](#environment-variables)). `evaluation` on `/api/ask` is `null` if `GEMINI_API_KEY` is unset or the judge call fails/times out; `/api/ask/recall` requires it and 500s without it.
 
 ## Current milestone
 
-The full pipeline is wired end-to-end and usable from the browser: upload a document on the Home tab, then ask grounded questions about it on the Ask tab. Still ahead: BYOK, the evaluation dashboard, and hardening (rate limiting, real auth) before any public deployment.
+The full pipeline is wired end-to-end and usable from the browser: upload a document on the Home tab, then ask grounded questions about it on the Ask tab, with automatic evaluation badges and an on-demand recall check. Still ahead: BYOK, an evaluation dashboard for aggregating scores across runs, and hardening (rate limiting, real auth) before any public deployment.
 
 ## Tech stack
 
 - Next.js (App Router) + TypeScript
 - Prisma 7 + PostgreSQL + pgvector
 - Docker Compose (local Postgres)
-- LangChain (`@langchain/openai`, `@langchain/textsplitters`) for embeddings, chat, and chunking
+- LangChain (`@langchain/openai`, `@langchain/textsplitters`, `@langchain/google-genai`) for embeddings, chat, chunking, and the judge model
+- `openevals` for LLM-as-judge evaluation (faithfulness, answer relevancy, precision, recall)
 - Material Design 3 (`@material/web`) + Tailwind CSS v4 for the UI
 - Vitest for unit tests
 
@@ -112,7 +126,9 @@ Do not commit `.env` — commit a `.env.example` (no real values) instead.
 | `DATABASE_URL` | Yes | Postgres connection string, e.g. `postgresql://user:password@localhost:5432/readthedocs_ai` |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Yes (for `docker compose`) | Used by `docker-compose.yml` to initialize the local Postgres container. Should match the credentials in `DATABASE_URL`. |
 | `OPENAI_API_KEY` | Yes | Used server-side for embeddings (ingestion) and generation (asking). Read by both API routes and all CLI scripts. |
-| `APP_ACCESS_PASSWORD` | No | If set, `/api/documents` and `/api/ask` require a matching `x-app-password` header (the UI has a password field for this). If unset, both routes are open — fine for local dev, not for a public deployment. |
+| `GEMINI_API_KEY` | No | Free-tier judge model key for answer evaluation (get one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)). If unset, `/api/ask` still works — evaluation is just skipped (`evaluation: null`) — but `/api/ask/recall` returns a 500. |
+| `RAG_TOP_K` | No | Number of chunks retrieved per question. Must be an integer 1–50; defaults to 5, with an invalid value falling back to the default (logged, not fatal). |
+| `APP_ACCESS_PASSWORD` | No | If set, `/api/documents`, `/api/ask`, and `/api/ask/recall` require a matching `x-app-password` header (the UI has a password field for this). If unset, all three routes are open — fine for local dev, not for a public deployment. |
 
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/readthedocs_ai"
@@ -120,6 +136,8 @@ POSTGRES_USER="user"
 POSTGRES_PASSWORD="password"
 POSTGRES_DB="readthedocs_ai"
 OPENAI_API_KEY="..."
+# GEMINI_API_KEY="..."
+# RAG_TOP_K=5
 # APP_ACCESS_PASSWORD="optional-shared-password"
 ```
 

@@ -4,8 +4,6 @@ import { stdin, stdout } from "node:process"
 import { answerQuestion } from "../app/lib/generation/answerQuestion"
 import { prisma } from "../app/server/db/prisma"
 
-const TOP_K = 5
-
 async function main() {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) throw new Error("OPENAI_API_KEY is missing")
@@ -36,7 +34,7 @@ async function main() {
 
   if (!question.trim()) throw new Error("Question cannot be empty")
 
-  const { answer, sources } = await answerQuestion(question, apiKey, documentId, TOP_K)
+  const { answer, sources } = await answerQuestion(question, apiKey, documentId)
 
   console.log(`\nAnswer:\n${answer}`)
 

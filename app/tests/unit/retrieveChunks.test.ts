@@ -58,26 +58,15 @@ describe("retrieveRelevantChunks", () => {
     expect(chunks).toEqual(results)
   })
 
-  it("defaults topK to 5 when not provided", async () => {
+  it("limits the query to DEFAULT_TOP_K", async () => {
     embedQueryMock.mockResolvedValue([0.1, 0.2, 0.3])
     queryRawMock.mockResolvedValue([])
 
-    const { retrieveRelevantChunks } = await import("../../lib/retrieval/retrieveChunks")
+    const { retrieveRelevantChunks, DEFAULT_TOP_K } = await import("../../lib/retrieval/retrieveChunks")
     await retrieveRelevantChunks("what is this about?", "api-key")
 
     const [, ...values] = queryRawMock.mock.calls[0]
-    expect(values).toContain(5)
-  })
-
-  it("passes a custom topK through to the query", async () => {
-    embedQueryMock.mockResolvedValue([0.1, 0.2, 0.3])
-    queryRawMock.mockResolvedValue([])
-
-    const { retrieveRelevantChunks } = await import("../../lib/retrieval/retrieveChunks")
-    await retrieveRelevantChunks("what is this about?", "api-key", 10)
-
-    const [, ...values] = queryRawMock.mock.calls[0]
-    expect(values).toContain(10)
+    expect(values).toContain(DEFAULT_TOP_K)
   })
 
   it("does not filter by document when documentId is omitted", async () => {
@@ -96,7 +85,7 @@ describe("retrieveRelevantChunks", () => {
     queryRawMock.mockResolvedValue([])
 
     const { retrieveRelevantChunks } = await import("../../lib/retrieval/retrieveChunks")
-    await retrieveRelevantChunks("what is this about?", "api-key", 5, "doc-123")
+    await retrieveRelevantChunks("what is this about?", "api-key", "doc-123")
 
     const [, , documentFilter] = queryRawMock.mock.calls[0]
     expect(documentFilter.values).toEqual(["doc-123"])

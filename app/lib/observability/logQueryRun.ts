@@ -1,6 +1,7 @@
 import { prisma } from "@/app/server/db/prisma"
+import { Prisma } from "@/app/generated/prisma"
 import { EMBEDDING_MODEL, SIMILARITY_METRIC } from "@/app/lib/retrieval/retrieveChunks"
-import type { RetrievedChunk } from "@/app/types"
+import type { EvaluationResult, RetrievedChunk } from "@/app/types"
 
 export type LogQueryRunInput = {
   question: string
@@ -9,6 +10,7 @@ export type LogQueryRunInput = {
   retrievedChunks: RetrievedChunk[]
   generationModel?: string
   answer?: string
+  evaluation?: EvaluationResult | null
 }
 
 export async function logQueryRun(input: LogQueryRunInput) {
@@ -22,6 +24,7 @@ export async function logQueryRun(input: LogQueryRunInput) {
       retrievedChunks: input.retrievedChunks,
       generationModel: input.generationModel,
       answer: input.answer,
+      evaluation: input.evaluation ?? Prisma.JsonNull,
     },
   })
 }

@@ -38,7 +38,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="relative">
         <md-navigation-bar active-index={NAV_ITEMS.findIndex((item) => item.key === active)}>
           {NAV_ITEMS.map((item) => (
@@ -60,7 +60,7 @@ export default function Home() {
 
       <md-divider />
 
-      <main className="relative flex flex-1 flex-col items-center pt-16">
+      <main className="relative flex min-h-0 flex-1 flex-col items-center pt-16">
         <button
           type="button"
           onClick={handleReadAnotherDoc}

@@ -1,11 +1,11 @@
-import type { ConfidenceResult } from "@/app/lib/generation/confidence"
+import type { EvaluationResult } from "@/app/types"
 
 export type ChatMessage = {
   id: string
   role: "user" | "assistant"
   content: string
   citations?: string[]
-  confidence?: ConfidenceResult
+  evaluation?: EvaluationResult | null
   isLoading?: boolean
   isError?: boolean
 }

@@ -8,19 +8,11 @@ ReadMyDocs AI is a grounded document Q&A app built with Next.js, Prisma, Postgre
 
 Upload a document, then ask questions about it in natural language. Answers are generated only from the chunks retrieved for that question, with inline citations back to the page or section they came from.
 
-<video width="640" height="360" controls preload>
-  <source src="public/ui-demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
-
 <p align="center" >
   <img src="public/architecture.png" alt="ReadMyDocs AI high-level architecture diagram" width="900" />
 </p>
 
 <img width="1260" height="600" alt="screencapture-localhost-3000-2026-08-24-15_18_08" src="https://github.com/user-attachments/assets/d786b8ab-18c0-4a78-8f72-e6d84b25cf53" /> <img width="2408" height="2442" alt="screencapture-localhost-3000-2026-08-24-15_18_31" src="https://github.com/user-attachments/assets/cb777763-a467-4e57-8ee4-24eba36bcb1f" />
-
-
-
 
 
 ## What this project does
@@ -81,7 +73,7 @@ Every answer is scored by an LLM-as-judge (`gemini-3.1-flash-lite`, kept on a se
 Not all four metrics run at the same time, because they don't cost the same:
 
 - **Faithfulness, answer relevancy, and precision** run automatically on every answer (`evaluateChunkScoped` in `app/lib/generation/evaluateAnswer.ts`). They only need the question, the answer, and the chunks already retrieved for it — cheap, and never allowed to block or fail the actual answer (a missing `GEMINI_API_KEY`, a judge failure, or a timeout just means `evaluation: null`).
-- **Recall** is *on demand*. Scoring recall properly requires reconstructing and sending the judge the *entire* source document (not just the retrieved chunks), which is expensive and was previously run on every single answer. It's now a separate step (`evaluateRecall`, `POST /api/ask/recall`) triggered from a "Run recall check" button that appears under an answer when faithfulness or relevancy dips below 0.7 — the cases where knowing whether retrieval missed relevant context is actually useful. The computed score is merged into the `QueryRun`'s stored evaluation.
+- **Recall** is *on demand*. - Coming soon.
 
 An evaluation dashboard for aggregating these scores across runs is still ahead.
 
